@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Task Manager</title>
+    <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+    <div class="app">
+        <header>
+            <h1>Task Manager</h1>
+            <p class="subtitle">Add, complete, edit, and delete your tasks.</p>
+        </header>
+
+        <main>
+            <!-- Add Task Form -->
+            <form id="task-form" class="task-form">
+                <input
+                    type="text"
+                    id="task-input"
+                    placeholder="Enter a new task..."
+                    autocomplete="off"
+                    required
+                />
+                <input
+                    type="date"
+                    id="task-date"
+                    title="Optional due date"
+                />
+                <button type="submit">Add Task</button>
+            </form>
+
+            <!-- Filters -->
+            <div class="filters">
+                <button class="filter-btn active" data-filter="all">All</button>
+                <button class="filter-btn" data-filter="active">Active</button>
+                <button class="filter-btn" data-filter="completed">Completed</button>
+            </div>
+
+            <!-- Task List -->
+            <ul id="task-list" class="task-list">
+                <!-- Tasks will be inserted here by JavaScript -->
+            </ul>
+        </main>
+
+        <footer>
+            <small>Tasks are saved in your browser (localStorage).</small>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+    </html>
