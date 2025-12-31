@@ -1,254 +1,143 @@
-// Key used for saving tasks in localStorage
-const STORAGE_KEY = "task_manager_tasks";
+let tasks = JSON.parse(localStorage.getItem("trelloTasks")) || [];
+let theme = localStorage.getItem("theme") || "light";
 
-// Current tasks array
-let tasks = [];
+const columns = document.querySelectorAll(".column");
+const themeToggle = document.getElementById("themeToggle");
 
-// Current filter: "all", "active", or "completed"
-let currentFilter = "all";
+/* ---------------- THEME ---------------- */
 
-// DOM elements
-const taskForm = document.getElementById("task-form");
-const taskInput = document.getElementById("task-input");
-const taskDateInput = document.getElementById("task-date");
-const taskList = document.getElementById("task-list");
-const filterButtons = document.querySelectorAll(".filter-btn");
+if (theme === "dark") {
+  document.body.classList.add("dark");
+  themeToggle.textContent = "☀️ Light Mode";
+}
 
-// ---------- Initial Setup ----------
-
-// Load tasks from localStorage when the page loads
-document.addEventListener("DOMContentLoaded", () => {
-    loadTasksFromStorage();
-    renderTasks();
+themeToggle.addEventListener("click", () => {
+  document.body.classList.toggle("dark");
+  theme = document.body.classList.contains("dark") ? "dark" : "light";
+  themeToggle.textContent = theme === "dark" ? "☀️ Light Mode" : "🌙 Dark Mode";
+  localStorage.setItem("theme", theme);
 });
 
-// ---------- Event Listeners ----------
+/* ---------------- TASK LOGIC ---------------- */
 
-// Add task on form submit
-taskForm.addEventListener("submit", (event) => {
-    event.preventDefault();
-    const title = taskInput.value.trim();
-    const dueDate = taskDateInput.value || null;
+function saveTasks() {
+  localStorage.setItem("trelloTasks", JSON.stringify(tasks));
+}
 
-    if (title === "") {
-        return;
-    }
+function formatDate(dateStr) {
+  return new Date(dateStr).toLocaleDateString();
+}
 
-    const newTask = {
-        id: Date.now().toString(), // unique id
-        title: title,
-        completed: false,
-        dueDate: dueDate,
-        createdAt: new Date().toISOString()
-    };
+function createCard(task) {
+  const card = document.createElement("div");
+  card.className = "card";
+  if (task.status === "done") card.classList.add("completed");
 
-    tasks.push(newTask);
-    saveTasksToStorage();
-    renderTasks();
+  card.draggable = true;
+  card.dataset.id = task.id;
 
-    taskInput.value = "";
-    taskDateInput.value = "";
-    taskInput.focus();
+  card.innerHTML = `
+    <div>${task.text}</div>
+    <small>🕒 Added: ${formatDate(task.createdAt)}</small>
+    <small>📅 Completion: ${formatDate(task.dueDate)}</small>
+
+    <div class="card-actions">
+      ${task.status !== "done" ? `<button class="complete">✔️</button>` : ""}
+      <button class="edit">✏️</button>
+      <button class="delete">🗑</button>
+    </div>
+  `;
+
+  /* Drag */
+  card.addEventListener("dragstart", () => card.classList.add("dragging"));
+  card.addEventListener("dragend", () => {
+    card.classList.remove("dragging");
+    updateStatus(card);
+  });
+
+  /* COMPLETE TASK */
+  const completeBtn = card.querySelector(".complete");
+  if (completeBtn) {
+    completeBtn.addEventListener("click", () => {
+      task.status = "done";              // ✅ move to done
+      saveTasks();
+      loadTasks();                       // refresh UI
+    });
+  }
+
+  /* EDIT */
+  card.querySelector(".edit").addEventListener("click", () => {
+    const newText = prompt("Edit task:", task.text);
+    if (!newText) return;
+    task.text = newText;
+    saveTasks();
+    loadTasks();
+  });
+
+  /* DELETE */
+  card.querySelector(".delete").addEventListener("click", () => {
+    tasks = tasks.filter(t => t.id !== task.id);
+    saveTasks();
+    loadTasks();
+  });
+
+  return card;
+}
+
+
+function loadTasks() {
+  columns.forEach(col => col.querySelector(".card-container").innerHTML = "");
+
+  tasks.forEach(task => {
+    const column = document.querySelector(
+      `[data-status="${task.status}"] .card-container`
+    );
+    column.appendChild(createCard(task));
+  });
+}
+
+function updateStatus(card) {
+  const status = card.closest(".column").dataset.status;
+  const task = tasks.find(t => t.id === card.dataset.id);
+  task.status = status;
+  saveTasks();
+}
+
+/* ---------------- ADD TASK ---------------- */
+
+document.querySelectorAll(".add-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const text = prompt("Enter task name:");
+    if (!text) return;
+
+    const dueDate = prompt("Enter completion date (YYYY-MM-DD):");
+    if (!dueDate) return;
+
+    const status = btn.closest(".column").dataset.status;
+
+    tasks.push({
+      id: Date.now().toString(),
+      text,
+      status,
+      createdAt: new Date().toISOString(),
+      dueDate
+    });
+
+    saveTasks();
+    loadTasks();
+  });
 });
 
-// Filter buttons (All / Active / Completed)
-filterButtons.forEach((btn) => {
-    btn.addEventListener("click", () => {
-        // Update active class visually
-        filterButtons.forEach((b) => b.classList.remove("active"));
-        btn.classList.add("active");
+/* ---------------- DRAG DROP ---------------- */
 
-        // Update filter and re-render
-        currentFilter = btn.getAttribute("data-filter");
-        renderTasks();
-    });
+columns.forEach(column => {
+  const container = column.querySelector(".card-container");
+
+  container.addEventListener("dragover", e => {
+    e.preventDefault();
+    const dragging = document.querySelector(".dragging");
+    container.appendChild(dragging);
+  });
 });
 
-// Delegate events for task actions (checkbox, edit, delete)
-taskList.addEventListener("click", (event) => {
-    const target = event.target;
-    const listItem = target.closest(".task-item");
-    if (!listItem) return;
-
-    const taskId = listItem.dataset.id;
-
-    // Checkbox toggle
-    if (target.classList.contains("task-checkbox")) {
-        toggleTaskCompletion(taskId);
-    }
-
-    // Edit button
-    if (target.classList.contains("edit-btn")) {
-        editTask(taskId);
-    }
-
-    // Delete button
-    if (target.classList.contains("delete-btn")) {
-        deleteTask(taskId);
-    }
-});
-
-// ---------- Functions ----------
-
-// Load tasks array from localStorage
-function loadTasksFromStorage() {
-    try {
-        const data = localStorage.getItem(STORAGE_KEY);
-        if (data) {
-            tasks = JSON.parse(data);
-        } else {
-            tasks = [];
-        }
-    } catch (error) {
-        console.error("Error reading tasks from localStorage:", error);
-        tasks = [];
-    }
-}
-
-// Save tasks array to localStorage
-function saveTasksToStorage() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
-}
-
-// Render tasks list on the UI
-function renderTasks() {
-    taskList.innerHTML = "";
-
-    const filteredTasks = tasks.filter((task) => {
-        if (currentFilter === "active") {
-            return !task.completed;
-        } else if (currentFilter === "completed") {
-            return task.completed;
-        }
-        return true; // "all"
-    });
-
-    if (filteredTasks.length === 0) {
-        const emptyMsg = document.createElement("li");
-        emptyMsg.textContent = "No tasks here. Add something!";
-        emptyMsg.style.textAlign = "center";
-        emptyMsg.style.fontSize = "0.8rem";
-        emptyMsg.style.color = "#6b7280";
-        taskList.appendChild(emptyMsg);
-        return;
-    }
-
-    filteredTasks.forEach((task) => {
-        const li = document.createElement("li");
-        li.classList.add("task-item");
-        li.dataset.id = task.id;
-
-        // Left side (checkbox + text)
-        const leftDiv = document.createElement("div");
-        leftDiv.classList.add("task-left");
-
-        const checkbox = document.createElement("input");
-        checkbox.type = "checkbox";
-        checkbox.classList.add("task-checkbox");
-        checkbox.checked = task.completed;
-
-        const textGroup = document.createElement("div");
-        textGroup.classList.add("task-text-group");
-
-        const titleSpan = document.createElement("span");
-        titleSpan.classList.add("task-title");
-        titleSpan.textContent = task.title;
-        if (task.completed) {
-            titleSpan.classList.add("completed");
-        }
-
-        const metaSpan = document.createElement("span");
-        metaSpan.classList.add("task-meta");
-        metaSpan.textContent = formatTaskMeta(task);
-
-        textGroup.appendChild(titleSpan);
-        textGroup.appendChild(metaSpan);
-
-        leftDiv.appendChild(checkbox);
-        leftDiv.appendChild(textGroup);
-
-        // Right side (buttons)
-        const actionsDiv = document.createElement("div");
-        actionsDiv.classList.add("task-actions");
-
-        const editBtn = document.createElement("button");
-        editBtn.textContent = "Edit";
-        editBtn.classList.add("edit-btn");
-
-        const deleteBtn = document.createElement("button");
-        deleteBtn.textContent = "Delete";
-        deleteBtn.classList.add("delete-btn");
-
-        actionsDiv.appendChild(editBtn);
-        actionsDiv.appendChild(deleteBtn);
-
-        li.appendChild(leftDiv);
-        li.appendChild(actionsDiv);
-
-        taskList.appendChild(li);
-    });
-}
-
-// Format task meta info (due date + created time)
-function formatTaskMeta(task) {
-    let parts = [];
-
-    if (task.dueDate) {
-        parts.push("Due: " + task.dueDate);
-    }
-
-    // Optional: also show when it was created in a short form (date only)
-    try {
-        const createdDate = new Date(task.createdAt);
-        const dateString = createdDate.toLocaleDateString();
-        parts.push("Added: " + dateString);
-    } catch (e) {
-        // ignore
-    }
-
-    return parts.join(" • ");
-}
-
-// Toggle completed status of a task
-function toggleTaskCompletion(id) {
-    tasks = tasks.map((task) => {
-        if (task.id === id) {
-            return { ...task, completed: !task.completed };
-        }
-        return task;
-    });
-
-    saveTasksToStorage();
-    renderTasks();
-}
-
-// Edit a task title (simple prompt)
-function editTask(id) {
-    const task = tasks.find((t) => t.id === id);
-    if (!task) return;
-
-    const newTitle = prompt("Edit task:", task.title);
-    if (newTitle === null) {
-        // user pressed Cancel
-        return;
-    }
-    const trimmed = newTitle.trim();
-    if (trimmed === "") {
-        alert("Task title cannot be empty.");
-        return;
-    }
-
-    task.title = trimmed;
-    saveTasksToStorage();
-    renderTasks();
-}
-
-// Delete a task
-function deleteTask(id) {
-    const confirmed = confirm("Are you sure you want to delete this task?");
-    if (!confirmed) return;
-
-    tasks = tasks.filter((task) => task.id !== id);
-    saveTasksToStorage();
-    renderTasks();
-}
+loadTasks();
