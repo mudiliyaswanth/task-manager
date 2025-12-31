@@ -1,54 +1,40 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Task Manager</title>
-    <link rel="stylesheet" href="style.css" />
+  <meta charset="UTF-8" />
+  <title>Task Manager</title>
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-    <div class="app">
-        <header>
-            <h1>Task Manager</h1>
-            <p class="subtitle">Add, complete, edit, and delete your tasks.</p>
-        </header>
 
-        <main>
-            <!-- Add Task Form -->
-            <form id="task-form" class="task-form">
-                <input
-                    type="text"
-                    id="task-input"
-                    placeholder="Enter a new task..."
-                    autocomplete="off"
-                    required
-                />
-                <input
-                    type="date"
-                    id="task-date"
-                    title="Optional due date"
-                />
-                <button type="submit">Add Task</button>
-            </form>
+<header class="navbar">
+  <h1>Task Manager</h1>
+  <button id="themeToggle">🌙 Dark Mode</button>
+</header>
 
-            <!-- Filters -->
-            <div class="filters">
-                <button class="filter-btn active" data-filter="all">All</button>
-                <button class="filter-btn" data-filter="active">Active</button>
-                <button class="filter-btn" data-filter="completed">Completed</button>
-            </div>
 
-            <!-- Task List -->
-            <ul id="task-list" class="task-list">
-                <!-- Tasks will be inserted here by JavaScript -->
-            </ul>
-        </main>
+<main class="board">
 
-        <footer>
-            <small>Tasks are saved in your browser (localStorage).</small>
-        </footer>
-    </div>
+  <div class="column" data-status="upcoming">
+    <h2>Upcoming</h2>
+    <button class="add-btn">+ Add Task</button>
+    <div class="card-container"></div>
+  </div>
 
-    <script src="script.js"></script>
+  <div class="column" data-status="inprogress">
+    <h2>In Progress</h2>
+    <button class="add-btn">+ Add Task</button>
+    <div class="card-container"></div>
+  </div>
+
+  <div class="column" data-status="done">
+    <h2>Done</h2>
+    <button class="add-btn">+ Add Task</button>
+    <div class="card-container"></div>
+  </div>
+
+</main>
+
+<script src="script.js"></script>
 </body>
-    </html>
+</html>
